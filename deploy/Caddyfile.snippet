@@ -1,0 +1,14 @@
+sunmi.chalco.website {
+	import site_common sunmi.chalco.website
+
+	request_body {
+		max_size 6MiB
+	}
+
+	reverse_proxy 127.0.0.1:10563 {
+		transport http {
+			response_header_timeout 40s
+		}
+	}
+}
+

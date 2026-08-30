@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Connexion · SUNMI Print Hub{% endblock %}
+{% block body %}
+<main class="login-shell">
+  <section class="login-card">
+    <div class="brand-mark" aria-hidden="true">S</div>
+    <p class="eyebrow">SUNMI T2 MINI</p>
+    <h1>Print Hub</h1>
+    <p class="muted">Connecte-toi pour envoyer et suivre les impressions.</p>
+    {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+    <form method="post" action="/login" class="stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>
+        <span>Identifiant</span>
+        <input name="username" autocomplete="username" required autofocus>
+      </label>
+      <label>
+        <span>Mot de passe</span>
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <button type="submit" class="primary full">Se connecter</button>
+    </form>
+  </section>
+</main>
+{% endblock %}
+

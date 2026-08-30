@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}SUNMI Print Hub{% endblock %}
+{% block body %}
+<div id="app" data-csrf="{{ csrf }}" data-can-view-history="{{ 'true' if can_view_history else 'false' }}">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">SUNMI T2 MINI</p>
+      <h1>Print Hub</h1>
+    </div>
+    <div class="topbar-actions">
+      {% if can_download_apk and apk_available %}
+      <a class="button secondary" href="/download/sunmi-printer-agent.apk">Télécharger l’APK</a>
+      {% elif can_download_apk %}
+      <span class="button secondary disabled">APK en préparation</span>
+      {% endif %}
+      <span class="muted">{{ username }}</span>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" class="quiet">Déconnexion</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <section class="device-card panel">
+      <div class="device-orb offline" id="device-orb"><span></span></div>
+      <div class="device-copy">
+        <div class="status-line">
+          <h2>{{ device_id }}</h2>
+          <span class="status-pill offline" id="online-pill">Hors ligne</span>
+        </div>
+        <p id="device-detail" class="muted">En attente de la première connexion de l’application.</p>
+        <p id="device-error" class="device-error hidden"></p>
+      </div>
+      <div class="queue-metrics" aria-label="État de la file">
+        <div><strong id="count-queued">0</strong><span>en attente</span></div>
+        {% if can_view_history %}
+        <div><strong id="count-printed">0</strong><span>imprimées</span></div>
+        <div><strong id="count-failed">0</strong><span>échecs</span></div>
+        {% endif %}
+      </div>
+    </section>
+
+    <div class="content-grid">
+      <section class="panel composer">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">NOUVEL ENVOI</p>
+            <h2>Créer une impression</h2>
+          </div>
+        </div>
+        <form id="print-form" class="stack" enctype="multipart/form-data">
+          <div class="editor-mode-switch" role="group" aria-label="Mode de composition">
+            <button type="button" class="active" id="advanced-mode-button">Éditeur libre</button>
+            <button type="button" id="simple-mode-button">Mode simple</button>
+          </div>
+
+          <div id="advanced-fields" class="advanced-fields">
+            <div class="editor-toolbar" aria-label="Mise en forme du texte">
+              <button type="button" data-editor-command="bold" title="Gras"><strong>G</strong></button>
+              <button type="button" data-editor-command="italic" title="Italique"><em>I</em></button>
+              <button type="button" data-editor-command="underline" title="Souligné"><u>S</u></button>
+              <select id="editor-font-size" aria-label="Taille du texte">
+                <option value="2">Petit</option>
+                <option value="3" selected>Normal</option>
+                <option value="5">Grand</option>
+                <option value="6">Très grand</option>
+                <option value="7">Énorme</option>
+              </select>
+              <span class="toolbar-divider"></span>
+              <button type="button" data-editor-command="justifyLeft" title="Aligner à gauche">≡</button>
+              <button type="button" data-editor-command="justifyCenter" title="Centrer">≡</button>
+              <button type="button" data-editor-command="justifyRight" title="Aligner à droite">≡</button>
+              <span class="toolbar-divider"></span>
+              <button type="button" id="editor-insert-image" class="toolbar-image">＋ Image</button>
+              <input type="file" id="editor-image-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+            </div>
+            <div id="rich-editor" class="rich-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Écris ton ticket ici…"></div>
+            <div id="editor-image-tools" class="editor-image-tools hidden">
+              <strong>Image sélectionnée</strong>
+              <label><span>Largeur</span><input type="range" id="editor-image-size" min="20" max="100" value="100"></label>
+              <button type="button" data-image-align="left">Gauche</button>
+              <button type="button" data-image-align="center">Centre</button>
+              <button type="button" data-image-align="right">Droite</button>
+              <button type="button" id="editor-image-up" title="Monter l’image">↑</button>
+              <button type="button" id="editor-image-down" title="Descendre l’image">↓</button>
+              <button type="button" id="editor-image-remove" class="remove-image">Supprimer</button>
+            </div>
+            <p class="field-hint editor-hint">Sélectionne du texte pour le mettre en forme. Clique sur une image pour la redimensionner ou la déplacer.</p>
+          </div>
+
+          <div id="simple-fields" class="stack hidden">
+          <label>
+            <span>Texte</span>
+            <textarea name="text" rows="8" maxlength="8000" placeholder="Bonjour depuis le cloud…"></textarea>
+            <small class="field-hint">Entrée crée une nouvelle ligne · plusieurs Entrées créent des lignes vides</small>
+          </label>
+
+          <div class="form-row three">
+            <label>
+              <span>Alignement</span>
+              <select name="align">
+                <option value="left">Gauche</option>
+                <option value="center">Centré</option>
+                <option value="right">Droite</option>
+              </select>
+            </label>
+            <label>
+              <span>Taille</span>
+              <select name="size">
+                <option value="22">Petite</option>
+                <option value="28" selected>Normale</option>
+                <option value="36">Grande</option>
+                <option value="48">Très grande</option>
+              </select>
+            </label>
+            <label class="toggle-field">
+              <span>Style</span>
+              <span class="toggle"><input type="checkbox" name="bold" value="true"><i></i> Gras</span>
+            </label>
+          </div>
+
+          <label class="dropzone" id="dropzone">
+            <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif">
+            <span class="drop-icon">＋</span>
+            <strong>Ajouter une image</strong>
+            <small>PNG, JPEG, WEBP ou GIF · 5 Mio max</small>
+            <span id="file-name" class="file-name"></span>
+          </label>
+          </div>
+
+          <label>
+            <span>QR code optionnel</span>
+            <input name="qr" maxlength="2048" placeholder="https://… ou texte libre">
+          </label>
+
+          <div class="form-row three compact-row">
+            <label id="text-feed-field" class="hidden">
+              <span>Lignes après le texte</span>
+              <input type="number" name="text_feed" min="0" max="12" value="0">
+            </label>
+            <label>
+              <span>Lignes en fin de ticket</span>
+              <input type="number" name="feed" min="0" max="12" value="4">
+            </label>
+            <label class="toggle-field">
+              <span>Finition</span>
+              <span class="toggle"><input type="checkbox" name="cut" value="true" checked><i></i> Couper le papier</span>
+            </label>
+          </div>
+
+          <button type="submit" class="primary full" id="send-button">
+            <span>Envoyer à l’imprimante</span>
+          </button>
+        </form>
+      </section>
+
+      <section class="panel preview-panel{% if can_view_history %} preview-with-history{% endif %}" aria-labelledby="preview-title">
+        <div class="section-heading preview-heading">
+          <div>
+            <p class="eyebrow">APERÇU EN DIRECT</p>
+            <h2 id="preview-title">Rendu du ticket</h2>
+          </div>
+          <span class="preview-width">Papier 80 mm</span>
+        </div>
+        <div class="preview-stage">
+          <div class="receipt" id="receipt-preview">
+            <div class="preview-empty" id="preview-empty">
+              Écris du texte ou ajoute une image pour voir le rendu.
+            </div>
+            <div id="preview-content" class="preview-content hidden"></div>
+          </div>
+        </div>
+        <p id="preview-meta" class="preview-meta">Largeur simulée : 576 points d’impression</p>
+      </section>
+
+      {% if can_view_history %}
+      <section class="panel history full-history">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">ACTIVITÉ</p>
+            <h2>Dernières impressions</h2>
+          </div>
+          <button type="button" class="icon-button" id="refresh-button" aria-label="Actualiser">↻</button>
+        </div>
+        <div id="jobs" class="jobs">
+          <div class="empty-state">Aucune impression pour le moment.</div>
+        </div>
+      </section>
+      {% endif %}
+    </div>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="/static/app.js?v=20260830-13" defer></script>
+{% endblock %}

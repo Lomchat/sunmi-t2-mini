@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">SUNMI Print Agent</string>
+    <string name="agent_title">SUNMI Print Agent</string>
+    <string name="agent_subtitle">Impression distante sécurisée</string>
+    <string name="service_running">Le service d’impression est actif</string>
+    <string name="service_channel">Impression distante</string>
+    <string name="open_dashboard">Ouvrir le tableau de bord</string>
+    <string name="restart_service">Redémarrer le service</string>
+</resources>
+

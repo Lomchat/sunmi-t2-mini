@@ -1,0 +1,72 @@
+plugins {
+    id 'com.android.application'
+}
+
+def serverUrl = providers.gradleProperty('serverUrl').getOrElse('https://sunmi.chalco.website')
+def deviceId = providers.gradleProperty('deviceId').getOrElse('t2-mini-01')
+def deviceToken = providers.gradleProperty('deviceToken').getOrElse('development-token-not-for-production')
+def keystoreFile = providers.gradleProperty('keystoreFile').orNull
+def keystorePassword = providers.gradleProperty('keystorePassword').orNull
+def keyAliasValue = providers.gradleProperty('keyAlias').getOrElse('sunmi-agent')
+def keyPasswordValue = providers.gradleProperty('keyPassword').orNull
+
+android {
+    namespace 'website.chalco.sunmiprinter'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'website.chalco.sunmiprinter'
+        minSdk 21
+        targetSdk 25
+        versionCode 1
+        versionName '1.0.0'
+
+        buildConfigField 'String', 'SERVER_URL', '"' + serverUrl + '"'
+        buildConfigField 'String', 'DEVICE_ID', '"' + deviceId + '"'
+        buildConfigField 'String', 'DEVICE_TOKEN', '"' + deviceToken + '"'
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreFile != null) {
+                storeFile file(keystoreFile)
+                storePassword keystorePassword
+                keyAlias keyAliasValue
+                keyPassword keyPasswordValue
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+            if (keystoreFile != null) {
+                signingConfig signingConfigs.release
+            }
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // This is a private sideloaded appliance app. Keeping targetSdk 25 preserves
+    // the legacy background-service behavior required by older SUNMI firmware.
+    lint {
+        disable 'ExpiredTargetSdkVersion'
+    }
+}
+
+dependencies {
+    implementation 'com.sunmi:printerlibrary:1.0.18'
+}

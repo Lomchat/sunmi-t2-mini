@@ -1,0 +1,9 @@
+<resources>
+    <color name="green">#1F8F65</color>
+    <color name="green_dark">#116947</color>
+    <color name="paper">#F4F3EE</color>
+    <color name="ink">#17211D</color>
+    <color name="muted">#66736D</color>
+    <color name="white">#FFFFFF</color>
+</resources>
+

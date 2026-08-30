@@ -1,0 +1,26 @@
+[Unit]
+Description=SUNMI T2 Mini Cloud Printer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sunmi-print
+Group=sunmi-print
+WorkingDirectory=/srv/sunmi_t2_mini/server
+EnvironmentFile=/etc/sunmi-t2-mini.env
+ExecStart=/srv/sunmi_t2_mini/.venv/bin/uvicorn app.main:create_app --factory --host 127.0.0.1 --port 10563 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=3
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/sunmi_t2_mini/data
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target
+
