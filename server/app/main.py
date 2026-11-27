@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import math
 import secrets
 import time
 import uuid
@@ -14,6 +15,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import BadSignature
+from starlette.concurrency import run_in_threadpool
 from PIL import Image, ImageOps, UnidentifiedImageError
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -23,6 +25,31 @@ from .security import new_csrf_token, verify_password, verify_token
 
 
 BASE_DIR = Path(__file__).resolve().parent
+
+
+_LOGIN_MAX_FAILS = 10
+_LOGIN_WINDOW = 15 * 60
+_LOGIN_MAX_KEYS = 10000
+_login_fails: dict[str, list[float]] = {}
+
+
+def _login_recent(ip: str, now: float) -> list[float]:
+    hits = [t for t in _login_fails.get(ip, []) if now - t < _LOGIN_WINDOW]
+    if hits:
+        _login_fails[ip] = hits
+    else:
+        _login_fails.pop(ip, None)
+    return hits
+
+
+def _login_record_fail(ip: str) -> None:
+    now = time.time()
+    if len(_login_fails) >= _LOGIN_MAX_KEYS:
+        for key in list(_login_fails):
+            _login_recent(key, now)
+        if len(_login_fails) >= _LOGIN_MAX_KEYS:
+            _login_fails.pop(next(iter(_login_fails)))
+    _login_fails.setdefault(ip, []).append(now)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -126,16 +153,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         csrf: Annotated[str, Form()],
     ):
         require_csrf(request, csrf)
+        # uvicorn tourne avec --proxy-headers : client.host est la vraie IP du visiteur.
+        ip = request.client.host if request.client else "unknown"
+        recent = _login_recent(ip, time.time())
+        if len(recent) >= _LOGIN_MAX_FAILS:
+            wait = max(1, math.ceil(recent[0] + _LOGIN_WINDOW - time.time()))
+            minutes = max(1, math.ceil(wait / 60))
+            return templates.TemplateResponse(
+                request,
+                "login.html",
+                {"csrf": csrf_for(request), "error": f"Trop de tentatives, réessayez dans {minutes} min."},
+                status_code=429,
+                headers={"Retry-After": str(wait)},
+            )
         role = ""
-        if username == settings.admin_username and verify_password(password, settings.admin_password_hash):
+        if username == settings.admin_username and await run_in_threadpool(
+            verify_password, password, settings.admin_password_hash
+        ):
             role = "admin"
         elif (
             settings.print_username
             and username == settings.print_username
-            and verify_password(password, settings.print_password_hash)
+            and await run_in_threadpool(verify_password, password, settings.print_password_hash)
         ):
             role = "printer"
         if not role:
+            _login_record_fail(ip)
             await asyncio.sleep(0.4)
             return templates.TemplateResponse(
                 request,
@@ -143,6 +186,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 {"csrf": csrf_for(request), "error": "Identifiants incorrects."},
                 status_code=401,
             )
+        _login_fails.pop(ip, None)
         request.session.clear()
         request.session["username"] = username
         request.session["role"] = role
